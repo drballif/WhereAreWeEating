@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Where Are We Eating? | Ballif Family</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #E8E8E8;
+            --card-bg: #F5F5F5;
+            --text-main: #222222;
+            --text-muted: #6B7280;
+            --primary-btn: #869BBB;
+            --primary-btn-hover: #6D82A5;
+            --border-color: #D1D5DB;
+            --bar-bg: #D1D5DB;
+            --bar-fill: #869BBB;
+            --number-color: #7A5C61; 
+            --pill-bg: #E5E7EB;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #1A1C23;
+            --card-bg: #252830;
+            --text-main: #F3F4F6;
+            --text-muted: #9CA3AF;
+            --primary-btn: #869BBB;
+            --primary-btn-hover: #9CA3AF;
+            --border-color: #4B5563;
+            --bar-bg: #374151;
+            --bar-fill: #869BBB;
+            --number-color: #E2A0A9;
+            --pill-bg: #374151;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            position: relative;
+        }
+
+        .theme-toggle {
+            position: absolute;
+            top: -20px;
+            right: 0;
+            background-color: var(--card-bg);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: all 0.2s;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-top: 20px;
+        }
+
+        .pre-title {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.75rem;
+            letter-spacing: 2px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        h1 {
+            font-family: 'DM Serif Display', serif;
+            font-size: 2.8rem;
+            margin: 0 0 15px 0;
+            line-height: 1.1;
+            color: var(--text-main);
+        }
+
+        .subtitle {
+            font-size: 1rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 35px 30px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.03);
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+
+        .card h2 {
+            font-family: 'DM Serif Display', serif;
+            font-size: 1.7rem;
+            margin: 0 0 5px 0;
+            color: var(--text-main);
+        }
+
+        .card .card-desc {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 25px;
+        }
+
+        .form-group { margin-bottom: 20px; }
+
+        .label-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .choice-num {
+            background-color: var(--primary-btn);
+            color: #FFF;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+            font-weight: 700;
+            margin-right: 10px;
+        }
+
+        label {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            font-weight: 700;
+        }
+
+        input[type="text"], select {
+            width: 100%;
+            padding: 10px 0;
+            border: none;
+            border-bottom: 1px solid var(--border-color);
+            background-color: transparent;
+            font-family: 'Inter', sans-serif;
+            font-size: 1.1rem;
+            color: var(--text-main);
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus, select:focus {
+            outline: none;
+            border-bottom: 2px solid var(--primary-btn);
+        }
+
+        select {
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%236B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>');
+            background-repeat: no-repeat;
+            background-position: right center;
+            cursor: pointer;
+        }
+        
+        select option:disabled {
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        [data-theme="dark"] select {
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%239CA3AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>');
+        }
+
+        .submit-row {
+            display: flex;
+            align-items: center;
+            margin-top: 30px;
+            gap: 15px;
+        }
+
+        button.submit-btn {
+            background-color: var(--primary-btn);
+            color: #FFFFFF;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 20px;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button.submit-btn:hover {
+            background-color: var(--primary-btn-hover);
+        }
+
+        .success-msg {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .rankings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 25px;
+        }
+        
+        .vote-count-total {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
+        }
+
+        #rankingsList {
+            list-style-type: none;
+            padding: 0;
+            margin: 0 0 30px 0;
+        }
+
+        .rank-item { margin-bottom: 20px; }
+
+        .rank-info {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .rank-left {
+            display: flex;
+            align-items: baseline;
+            gap: 15px;
+        }
+
+        .rank-number {
+            font-family: 'DM Serif Display', serif;
+            font-size: 1.5rem;
+            color: var(--number-color);
+            min-width: 20px;
+        }
+
+        .rank-name {
+            font-family: 'DM Serif Display', serif;
+            font-size: 1.3rem;
+            color: var(--text-main);
+        }
+
+        .rank-votes {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
+        }
+
+        .progress-track {
+            height: 4px;
+            background-color: var(--bar-bg);
+            border-radius: 2px;
+            width: 100%;
+            overflow: hidden;
+            margin-left: 35px;
+            width: calc(100% - 35px);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: var(--bar-fill);
+            border-radius: 2px;
+            transition: width 0.5s ease-out;
+        }
+
+        .whos-voted {
+            border-top: 1px solid var(--border-color);
+            padding-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        .whos-voted h3 {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin: 0 0 10px 0;
+        }
+
+        .voter-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .pill {
+            background-color: var(--pill-bg);
+            color: var(--text-main);
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .reset-container {
+            border-top: 1px solid var(--border-color);
+            padding-top: 20px;
+            text-align: right;
+        }
+
+        .btn-reset {
+            background: none;
+            border: none;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            text-decoration: underline;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .btn-reset:hover {
+            color: var(--text-main);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle Dark Mode">🌙</button>
+
+    <header>
+        <span class="pre-title">Hey Ballif Family</span>
+        <h1>Where Are We Eating?</h1>
+        <p class="subtitle">Everyone gets three picks. Share this page — the tally below updates as votes come in.</p>
+    </header>
+
+    <div class="card">
+        <h2>Cast your picks</h2>
+        <p class="card-desc">Everyone only gets to vote once per round!</p>
+
+        <form id="voteForm" onsubmit="submitVotes(event)">
+            <div class="form-group">
+                <div class="label-container">
+                    <label for="voterName">Your Name</label>
+                </div>
+                <select id="voterName" required>
+                    <option value="" disabled selected>Select your name...</option>
+                    <option value="Dad">Dad</option>
+                    <option value="Mom">Mom</option>
+                    <option value="Kaycie">Kaycie</option>
+                    <option value="Scott">Scott</option>
+                    <option value="Madi">Madi</option>
+                    <option value="Skylar">Skylar</option>
+                    <option value="Jaclyn">Jaclyn</option>
+                    <option value="Justin">Justin</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <div class="label-container">
+                    <div class="choice-num">1</div>
+                    <label for="choice1">First Choice</label>
+                </div>
+                <select id="choice1" class="restaurant-select" required>
+                    <option value="" disabled selected>Select a restaurant...</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <div class="label-container">
+                    <div class="choice-num">2</div>
+                    <label for="choice2">Second Choice</label>
+                </div>
+                <select id="choice2" class="restaurant-select" required>
+                    <option value="" disabled selected>Select a restaurant...</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <div class="label-container">
+                    <div class="choice-num">3</div>
+                    <label for="choice3">Third Choice</label>
+                </div>
+                <select id="choice3" class="restaurant-select" required>
+                    <option value="" disabled selected>Select a restaurant...</option>
+                </select>
+            </div>
+
+            <div class="submit-row">
+                <button type="submit" class="submit-btn">SUBMIT PICKS</button>
+                <span class="success-msg" id="successMsg">Picks saved!</span>
+            </div>
+        </form>
+    </div>
+
+    <div class="card">
+        <div class="rankings-header">
+            <h2>Current standings</h2>
+            <span class="vote-count-total"><span id="totalVoters">0</span> people voted</span>
+        </div>
+
+        <ul id="rankingsList"></ul>
+
+        <div class="whos-voted">
+            <h3>Who's Voted</h3>
+            <div class="voter-pills" id="voterPills">
+                <span style="color: var(--text-muted); font-size: 0.85rem; font-style: italic;">No one yet.</span>
+            </div>
+        </div>
+
+        <div class="reset-container">
+            <button class="btn-reset" onclick="resetVotes()">Reset for next time</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==========================================
+    // 1. ADD YOUR FIREBASE CONFIG HERE
+    // Paste the config snippet from Firebase below:
+    // ==========================================
+    const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT.firebaseapp.com",
+        databaseURL: "YOUR_DATABASE_URL.firebaseio.com",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_PROJECT.appspot.com",
+        messagingSenderId: "YOUR_MESSAGING_ID",
+        appId: "YOUR_APP_ID"
+    };
+    
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    // ==========================================
+
+
+    const restaurants = [
+        "Summit Pizza", "Beto's", "Blossom", "Teriyaki grill", "Zulu's", 
+        "Mo Bettah's", "KFC", "Purple Turtle", "Taco Amigos", "Chick fil-A", 
+        "Sushi Ya", "Costa Vida", "Five Guys", "Freddy's", "Spaghetti Factory", 
+        "Italian Village", "Maraca's"
+    ].sort();
+
+    const selects = [document.getElementById('choice1'), document.getElementById('choice2'), document.getElementById('choice3')];
+    let votes = {}; // This will now be populated entirely by Firebase
+
+    function updateDropdowns() {
+        const selectedValues = selects.map(s => s.value).filter(val => val !== "");
+        selects.forEach(select => {
+            const currentValue = select.value;
+            select.innerHTML = `<option value="" disabled ${currentValue === "" ? "selected" : ""}>Select a restaurant...</option>`;
+            restaurants.forEach(restaurant => {
+                const isSelectedElsewhere = selectedValues.includes(restaurant) && currentValue !== restaurant;
+                if (!isSelectedElsewhere) {
+                    const option = document.createElement('option');
+                    option.value = restaurant;
+                    option.textContent = restaurant;
+                    if (restaurant === currentValue) option.selected = true;
+                    select.appendChild(option);
+                }
+            });
+        });
+    }
+
+    selects.forEach(select => select.addEventListener('change', updateDropdowns));
+
+    // --- Firebase Real-time Listener ---
+    // Every time someone votes or resets, this triggers instantly for everyone viewing the page
+    db.ref('ballifVotes').on('value', (snapshot) => {
+        const data = snapshot.val();
+        votes = data || {}; 
+        
+        updateNameDropdown(); 
+        updateRankings();
+    });
+
+    function toggleTheme() {
+        const body = document.body;
+        const btn = document.getElementById('themeToggle');
+        if (body.hasAttribute('data-theme')) {
+            body.removeAttribute('data-theme');
+            btn.innerText = '🌙';
+            localStorage.setItem('ballifTheme', 'light'); // Theme stays in localStorage as it's device-specific
+        } else {
+            body.setAttribute('data-theme', 'dark');
+            btn.innerText = '☀️';
+            localStorage.setItem('ballifTheme', 'dark');
+        }
+    }
+
+    if (localStorage.getItem('ballifTheme') === 'dark') {
+        document.body.setAttribute('data-theme', 'dark');
+        document.getElementById('themeToggle').innerText = '☀️';
+    }
+
+    function updateNameDropdown() {
+        const nameSelect = document.getElementById('voterName');
+        const options = nameSelect.options;
+        for (let i = 0; i < options.length; i++) {
+            const opt = options[i];
+            if (opt.value === "") continue; 
+            
+            const key = opt.value.toLowerCase();
+            if (votes[key]) {
+                opt.disabled = true;
+                opt.textContent = opt.value + " (Voted)";
+            } else {
+                opt.disabled = false;
+                opt.textContent = opt.value;
+            }
+        }
+    }
+
+    function submitVotes(e) {
+        e.preventDefault();
+        
+        const rawName = document.getElementById('voterName').value;
+        const keyName = rawName.toLowerCase(); 
+        
+        if (votes[keyName]) {
+            alert(`${rawName} has already voted this round!`);
+            return;
+        }
+
+        const c1 = document.getElementById('choice1').value;
+        const c2 = document.getElementById('choice2').value;
+        const c3 = document.getElementById('choice3').value;
+
+        // Push to Firebase instead of localStorage
+        db.ref('ballifVotes/' + keyName).set({
+            displayName: rawName,
+            picks: [c1, c2, c3]
+        });
+
+        const successMsg = document.getElementById('successMsg');
+        successMsg.textContent = `Picks saved — thanks, ${rawName}!`;
+        successMsg.style.opacity = '1';
+        
+        document.getElementById('voterName').value = '';
+        document.getElementById('choice1').value = '';
+        document.getElementById('choice2').value = '';
+        document.getElementById('choice3').value = '';
+        
+        updateDropdowns(); 
+        setTimeout(() => { successMsg.style.opacity = '0'; }, 4000);
+    }
+
+    function updateRankings() {
+        const rankingsList = document.getElementById('rankingsList');
+        const voterPills = document.getElementById('voterPills');
+        const totalVotersSpan = document.getElementById('totalVoters');
+        
+        rankingsList.innerHTML = '';
+        voterPills.innerHTML = '';
+
+        const voterKeys = Object.keys(votes);
+        totalVotersSpan.textContent = voterKeys.length;
+
+        if (voterKeys.length === 0) {
+            rankingsList.innerHTML = '<li style="color: var(--text-muted); font-size: 0.9rem; font-style: italic;">No votes yet. Start the debate!</li>';
+            voterPills.innerHTML = '<span style="color: var(--text-muted); font-size: 0.85rem; font-style: italic;">No one yet.</span>';
+            return;
+        }
+
+        const counts = {};
+        let maxVotes = 0;
+
+        voterKeys.forEach(key => {
+            const voter = votes[key];
+            const pill = document.createElement('span');
+            pill.className = 'pill';
+            pill.textContent = voter.displayName;
+            voterPills.appendChild(pill);
+
+            voter.picks.forEach(restaurant => {
+                if (!restaurant) return;
+                if (!counts[restaurant]) counts[restaurant] = 0;
+                counts[restaurant] += 1;
+                if (counts[restaurant] > maxVotes) maxVotes = counts[restaurant];
+            });
+        });
+
+        const sortedResults = Object.keys(counts).map(name => ({
+            name: name,
+            count: counts[name]
+        })).sort((a, b) => b.count - a.count);
+
+        sortedResults.forEach((item, index) => {
+            const percentage = (item.count / maxVotes) * 100;
+            const li = document.createElement('li');
+            li.className = 'rank-item';
+            
+            li.innerHTML = `
+                <div class="rank-info">
+                    <div class="rank-left">
+                        <span class="rank-number">${index + 1}</span>
+                        <span class="rank-name">${item.name}</span>
+                    </div>
+                    <span class="rank-votes">${item.count} vote${item.count > 1 ? 's' : ''}</span>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-fill" style="width: ${percentage}%"></div>
+                </div>
+            `;
+            rankingsList.appendChild(li);
+        });
+    }
+
+    function resetVotes() {
+        if (confirm("Are you sure you want to wipe all current votes to start fresh?")) {
+            // Delete the entire votes node from Firebase
+            db.ref('ballifVotes').remove();
+            
+            document.getElementById('voterName').value = '';
+            document.getElementById('choice1').value = '';
+            document.getElementById('choice2').value = '';
+            document.getElementById('choice3').value = '';
+            updateDropdowns(); 
+        }
+    }
+
+    updateDropdowns(); 
+</script>
+</body>
+</html>
