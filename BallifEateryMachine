@@ -7,9 +7,13 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
     <style>
         :root {
-            /* Light Mode Colors */
             --bg-color: #E8E8E8;
             --card-bg: #F5F5F5;
             --text-main: #222222;
@@ -24,7 +28,6 @@
         }
 
         [data-theme="dark"] {
-            /* Dark Mode Colors */
             --bg-color: #1A1C23;
             --card-bg: #252830;
             --text-main: #F3F4F6;
@@ -38,9 +41,7 @@
             --pill-bg: #374151;
         }
 
-        * {
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
 
         body {
             font-family: 'Inter', sans-serif;
@@ -61,7 +62,6 @@
             position: relative;
         }
 
-        /* Theme Toggle */
         .theme-toggle {
             position: absolute;
             top: -20px;
@@ -81,7 +81,6 @@
             transition: all 0.2s;
         }
 
-        /* Header */
         header {
             text-align: center;
             margin-bottom: 30px;
@@ -114,7 +113,6 @@
             margin: 0 auto;
         }
 
-        /* Cards */
         .card {
             background-color: var(--card-bg);
             border-radius: 12px;
@@ -138,10 +136,7 @@
             margin-bottom: 25px;
         }
 
-        /* Form Elements */
-        .form-group {
-            margin-bottom: 20px;
-        }
+        .form-group { margin-bottom: 20px; }
 
         .label-container {
             display: flex;
@@ -239,7 +234,6 @@
             transition: opacity 0.3s;
         }
 
-        /* Rankings Section */
         .rankings-header {
             display: flex;
             justify-content: space-between;
@@ -260,9 +254,7 @@
             margin: 0 0 30px 0;
         }
 
-        .rank-item {
-            margin-bottom: 20px;
-        }
+        .rank-item { margin-bottom: 20px; }
 
         .rank-info {
             display: flex;
@@ -314,7 +306,6 @@
             transition: width 0.5s ease-out;
         }
 
-        /* Who's Voted Section */
         .whos-voted {
             border-top: 1px solid var(--border-color);
             padding-top: 20px;
@@ -345,7 +336,6 @@
             font-weight: 500;
         }
 
-        /* Reset Button */
         .reset-container {
             border-top: 1px solid var(--border-color);
             padding-top: 20px;
@@ -446,8 +436,7 @@
             <span class="vote-count-total"><span id="totalVoters">0</span> people voted</span>
         </div>
 
-        <ul id="rankingsList">
-            </ul>
+        <ul id="rankingsList"></ul>
 
         <div class="whos-voted">
             <h3>Who's Voted</h3>
@@ -463,7 +452,26 @@
 </div>
 
 <script>
-    // --- 1. Data Initialization & Dropdown Logic ---
+    // ==========================================
+    // 1. ADD YOUR FIREBASE CONFIG HERE
+    // Paste the config snippet from Firebase below:
+    // ==========================================
+    const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT.firebaseapp.com",
+        databaseURL: "YOUR_DATABASE_URL.firebaseio.com",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_PROJECT.appspot.com",
+        messagingSenderId: "YOUR_MESSAGING_ID",
+        appId: "YOUR_APP_ID"
+    };
+    
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    // ==========================================
+
+
     const restaurants = [
         "Summit Pizza", "Beto's", "Blossom", "Teriyaki grill", "Zulu's", 
         "Mo Bettah's", "KFC", "Purple Turtle", "Taco Amigos", "Chick fil-A", 
@@ -472,44 +480,45 @@
     ].sort();
 
     const selects = [document.getElementById('choice1'), document.getElementById('choice2'), document.getElementById('choice3')];
+    let votes = {}; // This will now be populated entirely by Firebase
 
     function updateDropdowns() {
         const selectedValues = selects.map(s => s.value).filter(val => val !== "");
-
         selects.forEach(select => {
             const currentValue = select.value;
             select.innerHTML = `<option value="" disabled ${currentValue === "" ? "selected" : ""}>Select a restaurant...</option>`;
-            
             restaurants.forEach(restaurant => {
                 const isSelectedElsewhere = selectedValues.includes(restaurant) && currentValue !== restaurant;
                 if (!isSelectedElsewhere) {
                     const option = document.createElement('option');
                     option.value = restaurant;
                     option.textContent = restaurant;
-                    if (restaurant === currentValue) {
-                        option.selected = true;
-                    }
+                    if (restaurant === currentValue) option.selected = true;
                     select.appendChild(option);
                 }
             });
         });
     }
 
-    selects.forEach(select => {
-        select.addEventListener('change', updateDropdowns);
+    selects.forEach(select => select.addEventListener('change', updateDropdowns));
+
+    // --- Firebase Real-time Listener ---
+    // Every time someone votes or resets, this triggers instantly for everyone viewing the page
+    db.ref('ballifVotes').on('value', (snapshot) => {
+        const data = snapshot.val();
+        votes = data || {}; 
+        
+        updateNameDropdown(); 
+        updateRankings();
     });
 
-    // --- 2. State Management ---
-    let votes = JSON.parse(localStorage.getItem('ballifAppVotes')) || {};
-
-    // --- 3. Theme Logic ---
     function toggleTheme() {
         const body = document.body;
         const btn = document.getElementById('themeToggle');
         if (body.hasAttribute('data-theme')) {
             body.removeAttribute('data-theme');
             btn.innerText = '🌙';
-            localStorage.setItem('ballifTheme', 'light');
+            localStorage.setItem('ballifTheme', 'light'); // Theme stays in localStorage as it's device-specific
         } else {
             body.setAttribute('data-theme', 'dark');
             btn.innerText = '☀️';
@@ -522,14 +531,12 @@
         document.getElementById('themeToggle').innerText = '☀️';
     }
 
-    // --- 4. Name Lockout Logic ---
     function updateNameDropdown() {
         const nameSelect = document.getElementById('voterName');
         const options = nameSelect.options;
-        
         for (let i = 0; i < options.length; i++) {
             const opt = options[i];
-            if (opt.value === "") continue; // Skip the placeholder
+            if (opt.value === "") continue; 
             
             const key = opt.value.toLowerCase();
             if (votes[key]) {
@@ -542,14 +549,12 @@
         }
     }
 
-    // --- 5. Logic & UI Updates ---
     function submitVotes(e) {
         e.preventDefault();
         
         const rawName = document.getElementById('voterName').value;
         const keyName = rawName.toLowerCase(); 
         
-        // Double check against hacking/resubmission
         if (votes[keyName]) {
             alert(`${rawName} has already voted this round!`);
             return;
@@ -559,31 +564,22 @@
         const c2 = document.getElementById('choice2').value;
         const c3 = document.getElementById('choice3').value;
 
-        // Save to state
-        votes[keyName] = {
+        // Push to Firebase instead of localStorage
+        db.ref('ballifVotes/' + keyName).set({
             displayName: rawName,
             picks: [c1, c2, c3]
-        };
+        });
 
-        // Persist
-        localStorage.setItem('ballifAppVotes', JSON.stringify(votes));
-
-        // Show Success
         const successMsg = document.getElementById('successMsg');
         successMsg.textContent = `Picks saved — thanks, ${rawName}!`;
         successMsg.style.opacity = '1';
         
-        // Reset form
         document.getElementById('voterName').value = '';
         document.getElementById('choice1').value = '';
         document.getElementById('choice2').value = '';
         document.getElementById('choice3').value = '';
         
-        updateDropdowns(); // Bring back the full restaurant list
-        updateNameDropdown(); // Lock out the person who just voted
-        updateRankings();
-
-        // Hide success message after 4 seconds
+        updateDropdowns(); 
         setTimeout(() => { successMsg.style.opacity = '0'; }, 4000);
     }
 
@@ -604,19 +600,16 @@
             return;
         }
 
-        // Tally Votes
         const counts = {};
         let maxVotes = 0;
 
         voterKeys.forEach(key => {
             const voter = votes[key];
-            // Generate Pills
             const pill = document.createElement('span');
             pill.className = 'pill';
             pill.textContent = voter.displayName;
             voterPills.appendChild(pill);
 
-            // Tally their choices
             voter.picks.forEach(restaurant => {
                 if (!restaurant) return;
                 if (!counts[restaurant]) counts[restaurant] = 0;
@@ -625,13 +618,11 @@
             });
         });
 
-        // Sort Highest to Lowest
         const sortedResults = Object.keys(counts).map(name => ({
             name: name,
             count: counts[name]
         })).sort((a, b) => b.count - a.count);
 
-        // Render List
         sortedResults.forEach((item, index) => {
             const percentage = (item.count / maxVotes) * 100;
             const li = document.createElement('li');
@@ -655,25 +646,18 @@
 
     function resetVotes() {
         if (confirm("Are you sure you want to wipe all current votes to start fresh?")) {
-            votes = {};
-            localStorage.removeItem('ballifAppVotes');
+            // Delete the entire votes node from Firebase
+            db.ref('ballifVotes').remove();
             
-            // Clear selections
             document.getElementById('voterName').value = '';
             document.getElementById('choice1').value = '';
             document.getElementById('choice2').value = '';
             document.getElementById('choice3').value = '';
-            
-            updateDropdowns(); // Unlock all restaurants
-            updateNameDropdown(); // Unlock all names
-            updateRankings();
+            updateDropdowns(); 
         }
     }
 
-    // Initial render
     updateDropdowns(); 
-    updateNameDropdown(); 
-    updateRankings();
 </script>
 </body>
 </html>
