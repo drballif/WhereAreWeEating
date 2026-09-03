@@ -714,7 +714,7 @@
     document.getElementById('successMsg').style.opacity = '1'; event.target.reset(); populateChoices(); await loadVotes();
     setTimeout(() => document.getElementById('successMsg').style.opacity = '0', 4000);
   };
-  window.resetVotes = () => alert('Round resets are managed by the site owner.');
+  window.resetVotes = async () => { if (!confirm('Reset all votes for a new round?')) return; const response = await fetch(API, {method: 'DELETE'}); if (!response.ok) return alert('Unable to reset votes.'); await loadVotes(); };
   populateChoices(); loadVotes().catch((error) => console.error(error)); setInterval(() => loadVotes().catch(() => {}), 5000);
 })();
 </script>
