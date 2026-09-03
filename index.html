@@ -8,9 +8,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
     
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    
+    
+    
 
     <style>
         :root {
@@ -658,6 +658,65 @@
     }
 
     updateDropdowns(); 
+</script>
+<script>
+(() => {
+  const API = '/api/votes';
+  const restaurants = ["Summit Pizza", "Beto's", "Blossom", "Teriyaki grill", "Zulu's", "Mo Bettah's", "KFC", "Purple Turtle", "Taco Amigos", "Chick fil-A", "Sushi Ya", "Costa Vida", "Five Guys", "Freddy's", "Spaghetti Factory", "Italian Village", "Maraca's"].sort();
+  const state = {};
+  function populateChoices() {
+    document.querySelectorAll('.restaurant-select').forEach((select) => {
+      if (select.options.length > 1) return;
+      restaurants.forEach((name) => select.add(new Option(name, name)));
+    });
+  }
+  function render(rows) {
+    Object.keys(state).forEach((key) => delete state[key]);
+    rows.forEach((vote) => state[vote.displayName.toLowerCase()] = vote);
+    const nameSelect = document.getElementById('voterName');
+    Array.from(nameSelect.options).forEach((option) => {
+      if (!option.value) return;
+      const voted = !!state[option.value.toLowerCase()];
+      option.disabled = voted;
+      option.textContent = option.value + (voted ? ' (Voted)' : '');
+    });
+    document.getElementById('totalVoters').textContent = rows.length;
+    const pills = document.getElementById('voterPills');
+    const list = document.getElementById('rankingsList');
+    pills.innerHTML = ''; list.innerHTML = '';
+    if (!rows.length) { pills.textContent = 'No one yet.'; list.textContent = 'No votes yet. Start the debate!'; return; }
+    const counts = {};
+    rows.forEach((vote) => {
+      const pill = document.createElement('span'); pill.className = 'pill'; pill.textContent = vote.displayName; pills.appendChild(pill);
+      vote.picks.forEach((pick) => counts[pick] = (counts[pick] || 0) + 1);
+    });
+    const max = Math.max(...Object.values(counts));
+    Object.entries(counts).sort((a,b) => b[1] - a[1]).forEach(([name, count], index) => {
+      const item = document.createElement('li'); item.className = 'rank-item';
+      item.innerHTML = '<div class="rank-info"><div class="rank-left"><span class="rank-number">' + (index + 1) + '</span><span class="rank-name"></span></div><span class="rank-votes">' + count + ' vote' + (count === 1 ? '' : 's') + '</span></div><div class="progress-track"><div class="progress-fill"></div></div>';
+      item.querySelector('.rank-name').textContent = name;
+      item.querySelector('.progress-fill').style.width = (count / max * 100) + '%'; list.appendChild(item);
+    });
+  }
+  async function loadVotes() {
+    const response = await fetch(API, {cache: 'no-store'});
+    if (!response.ok) throw new Error('Could not load votes.');
+    render((await response.json()).votes || []);
+  }
+  window.submitVotes = async (event) => {
+    event.preventDefault();
+    const displayName = document.getElementById('voterName').value;
+    const picks = Array.from(document.querySelectorAll('.restaurant-select'), (select) => select.value);
+    const response = await fetch(API, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({displayName, picks})});
+    const result = await response.json();
+    if (!response.ok) return alert(result.error || 'Unable to save your picks.');
+    document.getElementById('successMsg').textContent = 'Picks saved — thanks, ' + displayName + '!';
+    document.getElementById('successMsg').style.opacity = '1'; event.target.reset(); populateChoices(); await loadVotes();
+    setTimeout(() => document.getElementById('successMsg').style.opacity = '0', 4000);
+  };
+  window.resetVotes = () => alert('Round resets are managed by the site owner.');
+  populateChoices(); loadVotes().catch((error) => console.error(error)); setInterval(() => loadVotes().catch(() => {}), 5000);
+})();
 </script>
 </body>
 </html>
