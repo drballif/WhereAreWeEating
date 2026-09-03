@@ -8,9 +8,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
     
-    
-    
-    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <style>
         :root {
@@ -471,7 +471,6 @@
     const db = firebase.database();
     // ==========================================
 
-
     const restaurants = [
         "Summit Pizza", "Beto's", "Blossom", "Teriyaki grill", "Zulu's", 
         "Mo Bettah's", "KFC", "Purple Turtle", "Taco Amigos", "Chick fil-A", 
@@ -480,30 +479,25 @@
     ].sort();
 
     const selects = [document.getElementById('choice1'), document.getElementById('choice2'), document.getElementById('choice3')];
-    let votes = {}; // This will now be populated entirely by Firebase
+    let votes = {}; 
 
+    // --- FIX: Safely hide options instead of completely destroying/rebuilding HTML ---
     function updateDropdowns() {
         const selectedValues = selects.map(s => s.value).filter(val => val !== "");
+        
         selects.forEach(select => {
-            const currentValue = select.value;
-            select.innerHTML = `<option value="" disabled ${currentValue === "" ? "selected" : ""}>Select a restaurant...</option>`;
-            restaurants.forEach(restaurant => {
-                const isSelectedElsewhere = selectedValues.includes(restaurant) && currentValue !== restaurant;
-                if (!isSelectedElsewhere) {
-                    const option = document.createElement('option');
-                    option.value = restaurant;
-                    option.textContent = restaurant;
-                    if (restaurant === currentValue) option.selected = true;
-                    select.appendChild(option);
-                }
+            Array.from(select.options).forEach(option => {
+                if (option.value === "") return; // Leave the placeholder alone
+                
+                const isSelectedElsewhere = selectedValues.includes(option.value) && select.value !== option.value;
+                option.disabled = isSelectedElsewhere;
+                option.style.display = isSelectedElsewhere ? 'none' : 'block';
             });
         });
     }
 
     selects.forEach(select => select.addEventListener('change', updateDropdowns));
 
-    // --- Firebase Real-time Listener ---
-    // Every time someone votes or resets, this triggers instantly for everyone viewing the page
     db.ref('ballifVotes').on('value', (snapshot) => {
         const data = snapshot.val();
         votes = data || {}; 
@@ -518,7 +512,7 @@
         if (body.hasAttribute('data-theme')) {
             body.removeAttribute('data-theme');
             btn.innerText = '🌙';
-            localStorage.setItem('ballifTheme', 'light'); // Theme stays in localStorage as it's device-specific
+            localStorage.setItem('ballifTheme', 'light'); 
         } else {
             body.setAttribute('data-theme', 'dark');
             btn.innerText = '☀️';
@@ -564,7 +558,6 @@
         const c2 = document.getElementById('choice2').value;
         const c3 = document.getElementById('choice3').value;
 
-        // Push to Firebase instead of localStorage
         db.ref('ballifVotes/' + keyName).set({
             displayName: rawName,
             picks: [c1, c2, c3]
@@ -646,7 +639,6 @@
 
     function resetVotes() {
         if (confirm("Are you sure you want to wipe all current votes to start fresh?")) {
-            // Delete the entire votes node from Firebase
             db.ref('ballifVotes').remove();
             
             document.getElementById('voterName').value = '';
@@ -703,6 +695,8 @@
     if (!response.ok) throw new Error('Could not load votes.');
     render((await response.json()).votes || []);
   }
+  
+  // --- FIX: Ensure updateDropdowns() is called during submissions and resets ---
   window.submitVotes = async (event) => {
     event.preventDefault();
     const displayName = document.getElementById('voterName').value;
@@ -710,11 +704,26 @@
     const response = await fetch(API, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({displayName, picks})});
     const result = await response.json();
     if (!response.ok) return alert(result.error || 'Unable to save your picks.');
+    
     document.getElementById('successMsg').textContent = 'Picks saved — thanks, ' + displayName + '!';
-    document.getElementById('successMsg').style.opacity = '1'; event.target.reset(); populateChoices(); await loadVotes();
+    document.getElementById('successMsg').style.opacity = '1'; 
+    event.target.reset(); 
+    populateChoices(); 
+    updateDropdowns(); // Unlocks exclusions
+    await loadVotes();
+    
     setTimeout(() => document.getElementById('successMsg').style.opacity = '0', 4000);
   };
-  window.resetVotes = async () => { if (!confirm('Reset all votes for a new round?')) return; const response = await fetch(API, {method: 'DELETE'}); if (!response.ok) return alert('Unable to reset votes.'); await loadVotes(); };
+  
+  window.resetVotes = async () => { 
+      if (!confirm('Reset all votes for a new round?')) return; 
+      const response = await fetch(API, {method: 'DELETE'}); 
+      if (!response.ok) return alert('Unable to reset votes.'); 
+      document.getElementById('voteForm').reset();
+      updateDropdowns(); // Unlocks exclusions
+      await loadVotes(); 
+  };
+  
   populateChoices(); loadVotes().catch((error) => console.error(error)); setInterval(() => loadVotes().catch(() => {}), 5000);
 })();
 </script>
