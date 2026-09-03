@@ -9,6 +9,10 @@ module.exports = async (req, res) => {
       const votes = await sql`SELECT voter_name AS "displayName", picks FROM votes ORDER BY created_at`;
       return res.status(200).json({votes});
     }
+    if (req.method === 'DELETE') {
+      await sql`DELETE FROM votes`;
+      return res.status(200).json({ok: true});
+    }
     if (req.method !== 'POST') return res.status(405).json({error: 'Method not allowed.'});
     const {displayName, picks} = req.body || {};
     if (!PEOPLE.has(displayName) || !Array.isArray(picks) || picks.length !== 3 || new Set(picks).size !== 3 || !picks.every((pick) => RESTAURANTS.has(pick))) return res.status(400).json({error: 'Choose your name and three different restaurants.'});
